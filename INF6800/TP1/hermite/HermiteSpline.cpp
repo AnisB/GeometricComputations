@@ -17,7 +17,7 @@ bool solveSystem(float * a, float * b, float * c, CVector3 * u, CVector3 * r, in
 		std::cout<<"Error 1 in tridag"<<std::endl;
 		return false;
 	}
-	bet = b[1];
+	bet = b[0];
 	u[0] = r[0]/b[0];
 	for(int counter = 1; counter<parSystemSize; ++counter)
 	{
@@ -29,22 +29,59 @@ bool solveSystem(float * a, float * b, float * c, CVector3 * u, CVector3 * r, in
 			return false;
 		}
 		u[counter] = (r[counter]-a[counter]*u[counter-1])/bet;
-		//std::cout<<"Calcule "<<u[counter]<<std::endl;
 
 	}
-	for(int counter = (parSystemSize-2); counter>0;--counter)
+	for(int counter = (parSystemSize-2); counter>=0;--counter)
 	{
 		u[counter] -=gam[counter+1]*u[counter+1];
 		
-	}
-	for(int counter = 0; counter< parSystemSize;++counter)
-	{
-		std::cout<<"result "<<u[counter]<<std::endl;
 	}
 	delete [] gam;
 	return true;
 }
 
+
+bool solveSystemCirc(float * a, float * b, float * c, float alpha, float beta, CVector3 * x, CVector3 * r, int parSystemSize)
+{
+	float gamma, *bb;
+	CVector3 fact, *z, *u;
+	if(parSystemSize<=2)
+	{
+		std::cout<<"N is too small no cyclic possible"<<std::endl;
+		return false;
+	}
+	bb = new float[parSystemSize];
+	z = new CVector3[parSystemSize];
+	u = new CVector3[parSystemSize];
+	gamma =-b[0];
+	bb[0] = b[0]-gamma;
+	bb[parSystemSize-1] = b[parSystemSize-1]-alpha*beta/gamma;
+	for(int i = 1; i< (parSystemSize-1); ++i)
+	{
+		bb[i] = b[i];
+	}
+	solveSystem(a, bb, c, x, r, parSystemSize);
+	u[0] = CVector3(gamma, gamma, gamma);
+	u[parSystemSize-1] = CVector3(alpha, alpha,alpha);
+	for(int i = 1; i< (parSystemSize-1); ++i)
+	{
+		u[i] = CVector3();
+	}
+	solveSystem(a, bb, c, z, u, parSystemSize);
+	fact.x = (x[0].x+beta*x[parSystemSize-1].x/gamma)/(1.0+z[0].x+beta*z[parSystemSize-1].x/gamma);
+	fact.y = (x[0].y+beta*x[parSystemSize-1].y/gamma)/(1.0+z[0].y+beta*z[parSystemSize-1].y/gamma);
+	fact.z = (x[0].z+beta*x[parSystemSize-1].z/gamma)/(1.0+z[0].z+beta*z[parSystemSize-1].z/gamma);
+	for(int i =0; i< parSystemSize; ++i)
+	{
+		x[i].x -=  fact.x*z[i].x; 
+		x[i].y -=  fact.x*z[i].y; 
+		x[i].z -=  fact.x*z[i].z; 
+	}
+	delete [] z;
+	delete [] bb;
+	delete [] u;
+	return true;
+}
 CVector3 HermiteSpline::ComputePoint(ControlPoint parP1, ControlPoint parP2, float parT) const
 {
 	float u = parT;
@@ -128,15 +165,12 @@ void HermiteSpline::C2WithImposedTangents( const CVector3& T1, const CVector3& T
 
 	if(!solveSystem(a,b,c,u,r,nbEquations))
 		std::cout<<"Error while solving the system"<<std::endl;
-	std::cout<<T1<<std::endl;
 	m_ControlPoints[0].t = T1;
 	for(int counter = 1; counter<(m_ControlPoints.size()-1); ++counter)
 	{
 		m_ControlPoints[counter].t = u[counter-1];
-		std::cout<<m_ControlPoints[counter].t<<std::endl;
 	}
 	m_ControlPoints[m_ControlPoints.size()-1].t = Tn;
-	std::cout<<Tn<<std::endl;
 
 	delete [] a;
 	delete [] b;
@@ -180,18 +214,17 @@ void HermiteSpline::C2WithImposedCurvature( const CVector3& C1, const CVector3& 
 	b[nbEquations-1]=2;
 	c[nbEquations-1]=0;
 
-	r[0] =3*( m_ControlPoints[1].p - m_ControlPoints[0].p -C1/2);
+	r[0] =3*( m_ControlPoints[1].p - m_ControlPoints[0].p) -C1/2;
 	for(int counter = 1; counter<(nbEquations-1); ++counter)
 	{
 		r[counter] =3*( m_ControlPoints[counter+1].p - m_ControlPoints[counter-1].p);
 	}
-	r[nbEquations-1] =3*( m_ControlPoints[nbEquations-1].p - m_ControlPoints[nbEquations-2].p-Cn/2);
+	r[nbEquations-1] =3*( m_ControlPoints[nbEquations-1].p - m_ControlPoints[nbEquations-2].p)-Cn/2;
 	if(!solveSystem(a,b,c,u,r,nbEquations))
 		std::cout<<"Error while solving the system"<<std::endl;
 	for(int counter = 0; counter<(m_ControlPoints.size()); ++counter)
 	{
 		m_ControlPoints[counter].t = u[counter];
-		std::cout<<m_ControlPoints[counter].t<<std::endl;
 	}
 
 	delete [] a;
@@ -222,7 +255,7 @@ void HermiteSpline::C2WithClosedCurve()
 	//			la courbe est fermee.
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	// Nombre d'equations a résoudre
-	int nbEquations = m_ControlPoints.size();
+	int nbEquations = m_ControlPoints.size()-1;
 	// Création des buffers de resolution
 	float * a  = new float[nbEquations];
 	float * b  = new float[nbEquations];
@@ -231,7 +264,7 @@ void HermiteSpline::C2WithClosedCurve()
 	CVector3 * r  = new CVector3[nbEquations];
 	// Remplissage des buffers de données
 	a[0]=0;
-	b[0]=1;
+	b[0]=4;
 	c[0]=1;
 	for(int counter = 1; counter<(nbEquations-1); ++counter)
 	{
@@ -243,19 +276,20 @@ void HermiteSpline::C2WithClosedCurve()
 	b[nbEquations-1]=4;
 	c[nbEquations-1]=0;
 
-	r[0] =3*( m_ControlPoints[1].p - m_ControlPoints[0].p);
+	r[0] =3*( m_ControlPoints[1].p - m_ControlPoints[nbEquations-1].p);
 	for(int counter = 1; counter<(nbEquations-1); ++counter)
 	{
 		r[counter] =3*( m_ControlPoints[counter+1].p - m_ControlPoints[counter-1].p);
 	}
-	r[nbEquations-1] =3*( m_ControlPoints[nbEquations-1].p - m_ControlPoints[nbEquations-2].p);
-	if(!solveSystem(a,b,c,u,r,nbEquations))
+	r[nbEquations-1] =3*( m_ControlPoints[0].p - m_ControlPoints[nbEquations-2].p);
+	if(!solveSystemCirc(a,b,c,1,1,u,r,nbEquations))
 		std::cout<<"Error while solving the system"<<std::endl;
-	for(int counter = 0; counter<(m_ControlPoints.size()); ++counter)
+	for(int counter = 0; counter<nbEquations; ++counter)
 	{
 		m_ControlPoints[counter].t = u[counter];
-		std::cout<<m_ControlPoints[counter].t<<std::endl;
 	}
+	m_ControlPoints[nbEquations].t = u[0];
+
 
 	delete [] a;
 	delete [] b;

@@ -3,7 +3,11 @@
 #endif
 #include <GL/gl.h>
 #include <GL/glu.h>
+#ifdef _WIN32
+#include <glut.h>
+#else
 #include <GL/glut.h>
+#endif
 #include <math.h>
 #include <iostream>
 

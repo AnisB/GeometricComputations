@@ -49,7 +49,7 @@ public:
 	virtual ~BezierSpline();
 
 	// Calcule la valeur de la courbe de bezier avec l'algorithme de castelnau
-	CVector3 ComputePoint(const CPVector& parPoints, float parT) const;
+	CVector3 ComputePoint(CPVector parPoints, float parT) const;
 	
 	/// Ajoute un point de controle a la courbe.
 	/**
@@ -102,9 +102,6 @@ public:
 protected:
 	/// Le vecteur des points de controle.
 	CPVector	m_ControlPoints;
-	
-	// Flag de mise a jour pour le calcul des points de la courbe
-	bool m_IsOutDated;
 
 	/// Le point de controle actuellement selectionne. NULL si aucun.
 	CPIterator	m_SelectedControlPoint;

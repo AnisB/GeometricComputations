@@ -14,8 +14,7 @@ unsigned int	BezierSpline::ControlPoint::IdCounter = 0xFFFF;
 BezierSpline::ControlPoint::ControlPoint( const CVector4& _p ) :
 	Selected( false ),
 	Id( ++IdCounter ),
-	p( _p ),
-	IsOutDated(true)
+	p( _p )
 {
 }
 
@@ -104,34 +103,25 @@ bool BezierSpline::IsSelection()
 	return m_SelectedControlPoint != m_ControlPoints.end() ? true : false;
 }
 
-CVector3 BezierSpline::ComputePoint(const CPVector& parPoints, float parT) const
+CVector3 BezierSpline::ComputePoint(CPVector parPoints, float parT) const
 {
     int nbPoints = parPoints.size();
-    std::cout<<"Nombre de points"<<nbPoints<<std::endl;
-    CVector3 ** baseVal = new CVector3*[nbPoints];
-    for(int i = 0; i<nbPoints;++i)
-    {
-    	baseVal[i] = new CVector3[nbPoints];
-    }
-    for(int i = 0; i<nbPoints;++i)
-    {
-    	baseVal[0][i] = parPoints[i].p;
-    }
-    for(int j = 1; j < nbPoints; j++)
-    {
-    	std::cout<<"J "<<j<<std::endl;
-        for(int i = 0; i < nbPoints - j; i++)
-        {
-        	std::cout<<"I "<<i<<std::endl;
-        	std::cout<<"baseVal[j][i].p "<<baseVal[j][i]<<std::endl;
-        	std::cout<<"baseVal[j-1][i].p "<<baseVal[j-1][i]<<std::endl;
-        	std::cout<<"baseVal[j-1][i+1].p "<<baseVal[j-1][i+1]<<std::endl;
-            baseVal[j][i] = baseVal[j-1][i] * (1-parT) + baseVal[j-1][i+1] * parT;
-        }
-    }
-    CVector3 result = baseVal[nbPoints-1][0];
-    delete [] baseVal;
-    return result;	
+	if(nbPoints == 1)
+	{
+		return parPoints[0].p;
+	}
+	else if(nbPoints == 2)
+	{
+		return parPoints[0].p * (1-parT) + parPoints[1].p * parT;
+	}
+	else
+	{
+		CPVector first = parPoints;
+		CPVector second = parPoints;
+		first.pop_back();
+		second.erase(second.begin());
+		return (ComputePoint(first,parT) * (1-parT) + ComputePoint(second,parT)  * parT);
+	}
 }
 
 void BezierSpline::Draw( bool SelectMode ) const
@@ -187,11 +177,12 @@ void BezierSpline::Draw( bool SelectMode ) const
 		//			l'algorithme de deCasteljau.
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	}
+	glColor3f(0.5,0.5,0.2);
 	glBegin( GL_LINE_STRIP );
-	int tessFactor = 10;
+	int tessFactor = 15;
 	for(int i = 0;i <= tessFactor; ++i)
 	{
-		CVector3 point = ComputePoint(m_ControlPoints,i/tessFactor);
+		CVector3 point = ComputePoint(m_ControlPoints,i/(float)tessFactor);
 		glVertex3f( point.x, point.y, point.z );
 	}
 	glEnd();
