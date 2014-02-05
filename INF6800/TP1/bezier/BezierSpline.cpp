@@ -177,12 +177,16 @@ void BezierSpline::Draw( bool SelectMode ) const
 		//			l'algorithme de deCasteljau.
 		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	}
+	// On définit la couleur de la ligne
 	glColor3f(0.5,0.5,0.2);
+	// On trace la ligne entre les points
 	glBegin( GL_LINE_STRIP );
 	int tessFactor = 15;
 	for(int i = 0;i <= tessFactor; ++i)
 	{
+		// Calcul du point pour une valeur t allant de 0 à 1
 		CVector3 point = ComputePoint(m_ControlPoints,i/(float)tessFactor);
+		// On déssine
 		glVertex3f( point.x, point.y, point.z );
 	}
 	glEnd();

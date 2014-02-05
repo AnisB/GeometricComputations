@@ -7,25 +7,32 @@
 
 using namespace std;
 
+unsigned int	HermiteSpline::ControlPoint::IdCounter = 0xFFFF;
+
+// Cette fonction permets de résoudre le systeme triangulaire que définissent les courbes d'hermite
 bool solveSystem(float * a, float * b, float * c, CVector3 * u, CVector3 * r, int parSystemSize)
 {
-	unsigned long j;
+	// Declaration desz variables tampon
 	float bet, *gam;
+	// Allocation de la mémoire
 	gam = new float[parSystemSize];
+	// Verification sur la valeur de b0
 	if(b[0] == 0.0)
 	{
-		std::cout<<"Error 1 in tridag"<<std::endl;
+		std::cout<<"Error 1"<<std::endl;
 		return false;
 	}
+	//Initialisation
 	bet = b[0];
 	u[0] = r[0]/b[0];
+
 	for(int counter = 1; counter<parSystemSize; ++counter)
 	{
 		gam[counter] = c[counter-1]/bet;
 		bet = b[counter]-a[counter]*gam[counter];
 		if(bet == 0.0)
 		{
-			std::cout<<"Error 2 in tridag"<<std::endl;
+			std::cout<<"Error 2 "<<std::endl;
 			return false;
 		}
 		u[counter] = (r[counter]-a[counter]*u[counter-1])/bet;
@@ -36,18 +43,20 @@ bool solveSystem(float * a, float * b, float * c, CVector3 * u, CVector3 * r, in
 		u[counter] -=gam[counter+1]*u[counter+1];
 		
 	}
+	// on libère la mémoire
 	delete [] gam;
 	return true;
 }
 
-
+// Cette fonction permet de resoudre le systeme cyclique que défini la contrainte de courbure 
+// fermée par courbes d'hermite
 bool solveSystemCirc(float * a, float * b, float * c, float alpha, float beta, CVector3 * x, CVector3 * r, int parSystemSize)
 {
 	float gamma, *bb;
 	CVector3 fact, *z, *u;
 	if(parSystemSize<=2)
 	{
-		std::cout<<"N is too small no cyclic possible"<<std::endl;
+		std::cout<<"N trop petit"<<std::endl;
 		return false;
 	}
 	bb = new float[parSystemSize];
@@ -82,6 +91,7 @@ bool solveSystemCirc(float * a, float * b, float * c, float alpha, float beta, C
 	delete [] u;
 	return true;
 }
+
 CVector3 HermiteSpline::ComputePoint(ControlPoint parP1, ControlPoint parP2, float parT) const
 {
 	float u = parT;
@@ -89,9 +99,6 @@ CVector3 HermiteSpline::ComputePoint(ControlPoint parP1, ControlPoint parP2, flo
 	float u3 = u2*u;
 	return ((2*u3-3*u2+1)*parP1.p+ (-2*u3+3*u2)*parP2.p+(u3-2*u2+u)*parP1.t+(u3-u2)*parP2.t);
 }
-unsigned int	HermiteSpline::ControlPoint::IdCounter = 0xFFFF;
-
-
 
 HermiteSpline::ControlPoint::ControlPoint( const CVector3& _p, const CVector3& _t ) :
 	Selected( false ),
@@ -163,8 +170,11 @@ void HermiteSpline::C2WithImposedTangents( const CVector3& T1, const CVector3& T
 	}
 	r[nbEquations-1] = 3*(m_ControlPoints[m_ControlPoints.size()-1].p -m_ControlPoints[m_ControlPoints.size()-3].p - Tn/3);
 
+	// Resolution du système
 	if(!solveSystem(a,b,c,u,r,nbEquations))
 		std::cout<<"Error while solving the system"<<std::endl;
+
+	// Copie des tangeantes
 	m_ControlPoints[0].t = T1;
 	for(int counter = 1; counter<(m_ControlPoints.size()-1); ++counter)
 	{
@@ -220,8 +230,11 @@ void HermiteSpline::C2WithImposedCurvature( const CVector3& C1, const CVector3& 
 		r[counter] =3*( m_ControlPoints[counter+1].p - m_ControlPoints[counter-1].p);
 	}
 	r[nbEquations-1] =3*( m_ControlPoints[nbEquations-1].p - m_ControlPoints[nbEquations-2].p)-Cn/2;
+	// Resolution du système
 	if(!solveSystem(a,b,c,u,r,nbEquations))
 		std::cout<<"Error while solving the system"<<std::endl;
+	
+	// Copie des tangeantes
 	for(int counter = 0; counter<(m_ControlPoints.size()); ++counter)
 	{
 		m_ControlPoints[counter].t = u[counter];
@@ -282,8 +295,10 @@ void HermiteSpline::C2WithClosedCurve()
 		r[counter] =3*( m_ControlPoints[counter+1].p - m_ControlPoints[counter-1].p);
 	}
 	r[nbEquations-1] =3*( m_ControlPoints[0].p - m_ControlPoints[nbEquations-2].p);
+	// Resolution du système
 	if(!solveSystemCirc(a,b,c,1,1,u,r,nbEquations))
 		std::cout<<"Error while solving the system"<<std::endl;
+	// Copie des tangeantes
 	for(int counter = 0; counter<nbEquations; ++counter)
 	{
 		m_ControlPoints[counter].t = u[counter];
@@ -425,17 +440,18 @@ void HermiteSpline::Draw( bool SelectMode ) const
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	// A FAIRE:	Afficher la courbe d'Hermite a l'aide d'OpenGL.
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// Facteur de tesselation pour la ligne
 	int tessFactor = 100; 
 	for( i = 0; i < (m_ControlPoints.size()-1); i++ )
 	{
 		glBegin( GL_LINES);
 		glColor3f( 0.0f, 0.0f, 1.0f );
-		//std::cout<<"Drawing lines "<<i<<std::endl;
 		for(int j = 0; j < tessFactor; ++j)
 		{
-			//std::cout<<"Step "<<j<<std::endl;
+			//On calcule les deux points pour la ligne courante
 			CVector3 point1 = ComputePoint(m_ControlPoints[i], m_ControlPoints[i+1], j/(float)tessFactor);
 			CVector3 point2 = ComputePoint(m_ControlPoints[i], m_ControlPoints[i+1], (j+1)/(float)tessFactor);
+			// On trace la ligne entre ces deux points
 			glVertex3f( point1.x, point1.y, point1.z);
 			glVertex3f( point2.x, point2.y, point2.z);
 		}
